@@ -920,7 +920,7 @@ function Card({
 		<div
 			ref={el}
 			data-bubble
-			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${glow ? "ring-2 ring-primary/60" : ""} ${held ? "" : "transition-[top,left,width,height] duration-150 ease-out"}`}
+			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${glow ? "ring-2 ring-primary/60" : ""} ${held ? "" : "transition-[height] duration-150 ease-out"}`}
 			style={{
 				left: pos.left,
 				top: pos.top,
