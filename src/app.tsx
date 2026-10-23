@@ -13,6 +13,7 @@ import {
 	MessageSquare,
 	Minus,
 	Plus,
+	RotateCcw,
 	UserPlus,
 	X,
 } from "lucide-react";
@@ -1077,6 +1078,17 @@ function Bubble({
 					<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 						p. {thread.page} · {count} {count === 1 ? "message" : "messages"}
 					</span>
+					{(size.l !== 0 || size.r !== 0 || size.h !== null) && (
+						<button
+							type="button"
+							aria-label="Reset size"
+							title="Reset size"
+							className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+							onClick={() => onSize(NATURAL)}
+						>
+							<RotateCcw className="size-3.5" />
+						</button>
+					)}
 					<button
 						type="button"
 						aria-label={collapsed ? "Open" : "Fold"}
