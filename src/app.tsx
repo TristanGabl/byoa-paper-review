@@ -3,7 +3,7 @@
 // beside it, wherever anyone drags it, where everyone discusses it. A chat
 // for the rest can be opened beside it.
 import { type Entry, JOIN, LEAVE, type Session } from "byoa/participant";
-import { Named } from "byoa-web/onboard";
+import { Named, Onboard } from "byoa-web/onboard";
 import { useSession } from "byoa-web/react";
 import {
 	ChevronDown,
@@ -129,7 +129,9 @@ function readSelection(): Selected | null {
 /** The review, taking part under the person's `name`. */
 function Review({ name }: { name: string }) {
 	const page = useSession(name);
-	const { session, entries, presence, leave } = page;
+	const { session, entries, presence, alone, leave } = page;
+	// Whether the person chose to start before anyone else joined.
+	const [solo, setSolo] = useState(false);
 	const [failure, setFailure] = useState<string | null>(null);
 	const [chatOpen, setChatOpen] = useState(false);
 	const [zoom, setZoom] = useState(1);
@@ -204,6 +206,28 @@ function Review({ name }: { name: string }) {
 	const token = session
 		? (new URL(session.link).pathname.split("/").pop() ?? "")
 		: "";
+
+	if (session && alone && !solo && !paper) {
+		return (
+			<Onboard
+				name={SERVICE}
+				title="Review a paper with your agent"
+				description="Read a PDF together, mark passages, and discuss each one in a bubble beside it, with your agent and anyone you invite."
+				token={token}
+				note={
+					<span className="flex flex-col items-start gap-2">
+						<span>
+							Rather read first, or invite people? Your agent can join any time
+							later, with the prompt under Invite.
+						</span>
+						<Button variant="outline" onClick={() => setSolo(true)}>
+							Start without an agent
+						</Button>
+					</span>
+				}
+			/>
+		);
+	}
 
 	return (
 		<main className="flex h-dvh flex-col bg-[oklch(0.2_0.01_260)]">
