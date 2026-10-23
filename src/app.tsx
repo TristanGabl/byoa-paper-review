@@ -737,6 +737,7 @@ function Desk({
 						onDrag={(p) => setDragged((m) => ({ ...m, [thread.n]: p.top }))}
 						onDrop={(p) => place(thread, p)}
 						onReply={(text) => sendJson(REPLY, { thread: thread.n, text })}
+						urlOf={(n) => session.url(n)}
 					/>
 				))}
 				{draft && draftPos && (
@@ -1026,6 +1027,7 @@ function Bubble({
 	onDrag,
 	onDrop,
 	onReply,
+	urlOf,
 }: {
 	thread: Thread;
 	pos: Pos;
@@ -1044,6 +1046,8 @@ function Bubble({
 	onDrag: (p: Pos) => void;
 	onDrop: (p: Pos) => void;
 	onReply: (text: string) => Promise<unknown>;
+	/** Where an entry's payload is, for its images. */
+	urlOf: (n: number) => string;
 }) {
 	const people = [...new Set(thread.messages.map((m) => m.from))];
 	const list = useRef<HTMLOListElement>(null);
@@ -1129,7 +1133,16 @@ function Bubble({
 									>
 										{m.from === me ? "you" : m.from}
 									</span>
-									<Md>{m.text}</Md>
+									{m.text && <Md>{m.text}</Md>}
+									{m.images.map((n) => (
+										<a key={n} href={urlOf(n)} target="_blank" rel="noreferrer">
+											<img
+												src={urlOf(n)}
+												alt=""
+												className="mt-1.5 max-h-96 w-full rounded-md border bg-white object-contain"
+											/>
+										</a>
+									))}
 								</div>
 							</li>
 						))}

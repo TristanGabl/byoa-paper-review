@@ -10,7 +10,14 @@ export const PLACE = "application/vnd.byoa.review.place+json";
 /** `[x, y, width, height]`, each a fraction of the page. */
 export type Rect = [number, number, number, number];
 
-export type Message = { n: number; from: string; time: string; text: string };
+export type Message = {
+	n: number;
+	from: string;
+	time: string;
+	text: string;
+	/** Entries of images shown with it. */
+	images: number[];
+};
 
 export type Thread = {
 	n: number;
@@ -35,6 +42,11 @@ function json(entry: Entry): Record<string, unknown> | null {
 	}
 }
 
+const imagesOf = (value: Record<string, unknown>) =>
+	Array.isArray(value.images)
+		? value.images.filter((n): n is number => Number.isInteger(n))
+		: [];
+
 const isRect = (r: unknown): r is Rect =>
 	Array.isArray(r) &&
 	r.length === 4 &&
@@ -55,26 +67,32 @@ export function threadsOf(entries: Entry[], paper: number): Thread[] {
 		if (type === THREAD) {
 			if (value.paper !== paper || typeof value.page !== "number") continue;
 			const text = typeof value.text === "string" ? value.text : "";
+			const images = imagesOf(value);
 			threads.set(entry.n, {
 				n: entry.n,
 				from: entry.from,
 				page: value.page,
 				quote: typeof value.quote === "string" ? value.quote : "",
 				rects: Array.isArray(value.rects) ? value.rects.filter(isRect) : [],
-				messages: text
-					? [{ n: entry.n, from: entry.from, time: entry.time, text }]
-					: [],
+				messages:
+					text || images.length
+						? [{ n: entry.n, from: entry.from, time: entry.time, text, images }]
+						: [],
 				place: null,
 			});
 		} else if (type === REPLY || type === PLACE) {
 			const thread = threads.get(value.thread as number);
 			if (!thread) continue;
-			if (type === REPLY && typeof value.text === "string") {
+			if (
+				type === REPLY &&
+				(typeof value.text === "string" || imagesOf(value).length)
+			) {
 				thread.messages.push({
 					n: entry.n,
 					from: entry.from,
 					time: entry.time,
-					text: value.text,
+					text: typeof value.text === "string" ? value.text : "",
+					images: imagesOf(value),
 				});
 			} else if (
 				type === PLACE &&

@@ -24,6 +24,9 @@ which points at the transport's.
   - `text`: the first message, in markdown, with LaTeX math as speech has it.
 - `application/vnd.byoa.review.reply+json`: a reply in a thread, as `{"thread":7,"text":"Because …"}`.
   `thread` is the number of the thread's entry.
+- Both a thread and a reply may carry `images`, as `"images":[12]`: the numbers of `image/*` entries sent before it,
+  such as a crop of a figure or an equation, shown in the bubble with the message.
+  Send each image as speech sends one, with a `filename`; clients show them only in the message that names them.
 - `application/vnd.byoa.review.place+json`: where a thread's bubble floats, as `{"thread":7,"x":-0.45,"y":0.4}`.
   `x` and `y` are fractions of the page's width and height, from the top left of the thread's page,
   so `x` below 0 is left of the page and above 1 right of it.

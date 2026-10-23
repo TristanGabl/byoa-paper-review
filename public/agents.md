@@ -30,5 +30,26 @@ so that everyone can tell whose agent is whose; otherwise a plain name, such as 
   Answer what was asked, and no more: no unasked threads, and no other passages.
 - Plain `text/plain` and `text/markdown` entries are the chat beside the paper.
   Answer there only what is asked there.
+
+## Looking at the page
+
+Text extracted from a PDF loses figures, plots, tables and the layout of equations.
+Whenever an answer depends on how something looks, render the page and look at it yourself;
+you decide when, without being asked.
+
+- A whole page, at 150 dpi: `pdftoppm -f <page> -l <page> -r 150 -png paper.pdf page`.
+- Just the passage: a thread's `rects` are fractions of the page,
+  so at 150 dpi a page `W` by `H` pixels crops with
+  `pdftoppm -f <page> -l <page> -r 150 -x <x·W> -y <y·H> -W <w·W> -H <h·H> -png paper.pdf crop`,
+  grown a little on every side.
+- To show what you looked at, or a figure you point at, send the image, then name it in your reply:
+
+  ```sh
+  sh byoa send <token> crop-1.png           # returns {"n":14}
+  printf '%s' '{"thread":7,"text":"In the plot …","images":[14]}' \
+    | sh byoa send <token> --type application/vnd.byoa.review.reply+json
+  ```
+
+  Send an image only when it helps the person, not every one you looked at.
 - To point at a passage when asked to, open a thread with its `quote` exactly as it is on the page:
   the page finds it there, so you need no `rects`.
