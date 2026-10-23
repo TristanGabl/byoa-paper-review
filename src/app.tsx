@@ -344,7 +344,6 @@ function Review({ name }: { name: string }) {
 						zoom={zoom}
 						threads={threads}
 						session={session}
-						presence={presence}
 						sendJson={sendJson}
 					/>
 				) : (
@@ -461,7 +460,6 @@ function Desk({
 	zoom,
 	threads,
 	session,
-	presence,
 	sendJson,
 }: {
 	doc: Doc;
@@ -469,7 +467,6 @@ function Desk({
 	zoom: number;
 	threads: Thread[];
 	session: Session;
-	presence: Record<string, { read: number }>;
 	sendJson: SendJson;
 }) {
 	const scroller = useRef<HTMLDivElement>(null);
@@ -726,13 +723,6 @@ function Desk({
 						onSize={(size) => setSizes((m) => ({ ...m, [thread.n]: size }))}
 						z={20 + front.indexOf(thread.n) + 1}
 						collapsed={!!collapsed[thread.n]}
-						seenBy={Object.entries(presence)
-							.filter(
-								([other, { read }]) =>
-									other !== session.name &&
-									read >= (thread.messages.at(-1)?.n ?? thread.n),
-							)
-							.map(([other]) => other)}
 						me={session.name}
 						onRaise={() => raise(thread.n)}
 						onCollapse={(c) => setCollapsed((m) => ({ ...m, [thread.n]: c }))}
@@ -1024,7 +1014,6 @@ function Bubble({
 	onSize,
 	z,
 	collapsed,
-	seenBy,
 	me,
 	onRaise,
 	onCollapse,
@@ -1040,7 +1029,6 @@ function Bubble({
 	onSize: (size: Size) => void;
 	z: number;
 	collapsed: boolean;
-	seenBy: string[];
 	me: string;
 	onRaise: () => void;
 	onCollapse: (c: boolean) => void;
@@ -1128,11 +1116,6 @@ function Bubble({
 							</li>
 						))}
 					</ol>
-					{seenBy.length > 0 && (
-						<span className="px-3 pb-1 text-[11px] text-muted-foreground">
-							seen by {seenBy.join(", ")}
-						</span>
-					)}
 					<Composer placeholder="Reply…" onSend={onReply} />
 				</>
 			)}
