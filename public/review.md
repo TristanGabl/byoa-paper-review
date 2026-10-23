@@ -28,6 +28,7 @@ which points at the transport's.
   `x` and `y` are fractions of the page's width and height, from the top left of the thread's page,
   so `x` below 0 is left of the page and above 1 right of it.
   The latest place wins; without one, clients choose.
+  Clients may keep a bubble in a column beside its passage, and take only its `y`.
 
 Speech entries, `text/plain` and `text/markdown`, are the session's chat beside the paper,
 for what is about no passage in particular.

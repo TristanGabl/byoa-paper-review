@@ -10,7 +10,9 @@ import {
 	ChevronUp,
 	FileUp,
 	LogOut,
+	Maximize2,
 	MessageSquare,
+	Minimize2,
 	Minus,
 	Plus,
 	UserPlus,
@@ -47,6 +49,8 @@ import {
 const MAX_BYTES = 10 * 1024 * 1024;
 /** A bubble's width, and its distance from the page. */
 const BUBBLE = 300;
+/** A bubble's width while widened. */
+const WIDE = 520;
 const GAP = 56;
 const PAGE_GAP = 28;
 const TOP = 48;
@@ -476,68 +480,62 @@ function Desk({
 
 	const [selected, setSelected] = useState<Selected | null>(null);
 	const [draft, setDraft] = useState<Selected | null>(null);
-	const [dragged, setDragged] = useState<Record<number, Pos>>({});
+	const [dragged, setDragged] = useState<Record<number, number>>({});
 	const [heights, setHeights] = useState<Record<number, number>>({});
 	const [front, setFront] = useState<number[]>([]);
 	const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
+	const [wide, setWide] = useState<Record<number, boolean>>({});
 	const raise = (n: number) =>
 		setFront((f) => [...f.filter((m) => m !== n), n]);
 
 	const anchorOf = (rects: Rect[]) => bounds(rects);
 
-	// Where each bubble floats, in pixels on the desk: its place, if someone
-	// put it somewhere, or else beside its passage, stacked on its side.
-	type Laid = { thread: Thread; rects: Rect[]; pos: Pos; left: boolean };
-	const laid: Laid[] = [];
-	const bottoms = { left: 0, right: 0 };
-	const sorted = [...threads].sort((a, b) => {
-		const ya =
-			(tops[a.page - 1] ?? 0) +
-			(anchorOf(a.rects.length ? a.rects : (found[a.n] ?? []))?.[1] ?? 0) *
-				pageHeight(a.page);
-		const yb =
-			(tops[b.page - 1] ?? 0) +
-			(anchorOf(b.rects.length ? b.rects : (found[b.n] ?? []))?.[1] ?? 0) *
-				pageHeight(b.page);
-		return ya - yb;
-	});
-	const items: {
-		key: number;
-		page: number;
+	// Where each bubble floats, in pixels on the desk: in the column on its
+	// passage's side, at the height someone dragged it to, or else beside its
+	// passage, below the bubbles above it in that column.
+	type Laid = {
+		thread: Thread;
 		rects: Rect[];
-		thread: Thread | null;
-	}[] = sorted.map((thread) => ({
-		key: thread.n,
-		page: thread.page,
-		rects: thread.rects.length ? thread.rects : (found[thread.n] ?? []),
-		thread,
-	}));
-	for (const item of items) {
-		const thread = item.thread as Thread;
-		const box = anchorOf(item.rects);
-		const pageTop = tops[item.page - 1] ?? 0;
-		const ph = pageHeight(item.page);
-		let pos: Pos;
-		let left: boolean;
-		if (dragged[item.key]) {
-			pos = dragged[item.key] as Pos;
-			left = pos.left + BUBBLE / 2 < side + width / 2;
-		} else if (thread.place) {
-			pos = {
-				left: side + thread.place.x * width,
-				top: pageTop + thread.place.y * ph,
+		pos: Pos;
+		left: boolean;
+		w: number;
+		fixed: boolean;
+	};
+	const column = (left: boolean, w: number) =>
+		left ? Math.max(8, side - GAP - w) : side + width + GAP;
+	const laid: Laid[] = threads
+		.map((thread) => {
+			const rects = thread.rects.length
+				? thread.rects
+				: (found[thread.n] ?? []);
+			const box = anchorOf(rects);
+			const pageTop = tops[thread.page - 1] ?? 0;
+			const ph = pageHeight(thread.page);
+			const fixed =
+				dragged[thread.n] ??
+				(thread.place ? pageTop + thread.place.y * ph : null);
+			const w = wide[thread.n] ? WIDE : BUBBLE;
+			const left = box ? box[0] + box[2] / 2 < 0.5 : true;
+			return {
+				thread,
+				rects,
+				left,
+				w,
+				fixed: fixed !== null,
+				pos: {
+					left: column(left, w),
+					top: fixed ?? pageTop + (box?.[1] ?? 0) * ph - 16,
+				},
 			};
-			left = pos.left + BUBBLE / 2 < side + width / 2;
-		} else {
-			left = box ? box[0] + box[2] / 2 < 0.5 : true;
-			const want = pageTop + (box?.[1] ?? 0) * ph - 16;
-			const s = left ? "left" : "right";
-			const top = Math.max(want, bottoms[s] + 14);
-			pos = { left: left ? side - GAP - BUBBLE : side + width + GAP, top };
-			bottoms[s] =
-				top + (collapsed[item.key] ? 44 : (heights[item.key] ?? 160));
-		}
-		laid.push({ thread, rects: item.rects, pos, left });
+		})
+		.sort((a, b) => a.pos.top - b.pos.top);
+	const bottoms = { left: 0, right: 0 };
+	for (const item of laid) {
+		const s = item.left ? "left" : "right";
+		if (!item.fixed) item.pos.top = Math.max(item.pos.top, bottoms[s] + 14);
+		bottoms[s] =
+			item.pos.top +
+			(collapsed[item.thread.n] ? 44 : (heights[item.thread.n] ?? 160));
 	}
 
 	const draftPos: Pos | null = draft
@@ -571,13 +569,14 @@ function Desk({
 	);
 
 	const lines = [
-		...laid.map(({ thread, rects, pos, left }) => ({
+		...laid.map(({ thread, rects, pos, left, w }) => ({
 			key: thread.n,
 			from: thread.from,
 			page: thread.page,
 			rects,
 			pos,
 			left,
+			w,
 			height: collapsed[thread.n] ? 40 : (heights[thread.n] ?? 120),
 		})),
 		...(draft && draftPos
@@ -589,6 +588,7 @@ function Desk({
 						rects: draft.rects,
 						pos: draftPos,
 						left: draftPos.left < side,
+						w: BUBBLE,
 						height: 120,
 					},
 				]
@@ -626,7 +626,7 @@ function Desk({
 					width={side * 2 + width}
 					height={height}
 				>
-					{lines.map(({ key, from, page, rects, pos, left, height: h }) => {
+					{lines.map(({ key, from, page, rects, pos, left, w, height: h }) => {
 						const box = anchorOf(rects);
 						if (!box) return null;
 						const pageTop = tops[page - 1] ?? 0;
@@ -636,12 +636,12 @@ function Desk({
 						const by = pageTop + box[1] * ph - pad;
 						const bw = box[2] * width + 2 * pad;
 						const bh = box[3] * ph + 2 * pad;
-						const sx = left ? pos.left + BUBBLE : pos.left;
+						const sx = left ? pos.left + w : pos.left;
 						const sy = pos.top + Math.min(h, 60) / 2;
 						const ex = left ? bx : bx + bw;
 						const ey = by + bh / 2;
 						const mid = (sx + ex) / 2;
-						const stroke = color(from, front.at(-1) === key ? 1 : 0.75);
+						const stroke = color(from, front.at(-1) === key ? 0.7 : 0.4);
 						return (
 							<g key={key}>
 								{rects.map((r, i) => (
@@ -652,7 +652,7 @@ function Desk({
 										y={pageTop + r[1] * ph}
 										width={r[2] * width}
 										height={r[3] * ph}
-										fill={color(from, 0.18)}
+										fill={color(from, 0.08)}
 									/>
 								))}
 								<rect
@@ -663,23 +663,36 @@ function Desk({
 									rx={6}
 									fill="none"
 									stroke={stroke}
-									strokeWidth={1.6}
+									strokeWidth={1.2}
 								/>
+								<text
+									x={bx + bw}
+									y={by + bh + 13}
+									textAnchor="end"
+									fontSize={12}
+									fontStyle="italic"
+									fontFamily="'Segoe Script', 'Bradley Hand', cursive"
+									fill={stroke}
+								>
+									{from}
+								</text>
 								<path
 									d={`M ${sx} ${sy} C ${mid} ${sy}, ${mid} ${ey}, ${ex} ${ey}`}
 									fill="none"
 									stroke={stroke}
-									strokeWidth={1.6}
+									strokeWidth={1.2}
 								/>
 							</g>
 						);
 					})}
 				</svg>
-				{laid.map(({ thread, pos }) => (
+				{laid.map(({ thread, pos, w }) => (
 					<Bubble
 						key={thread.n}
 						thread={thread}
 						pos={pos}
+						width={w}
+						onWiden={(on) => setWide((m) => ({ ...m, [thread.n]: on }))}
 						z={20 + front.indexOf(thread.n) + 1}
 						collapsed={!!collapsed[thread.n]}
 						seenBy={Object.entries(presence)
@@ -697,7 +710,7 @@ function Desk({
 								m[thread.n] === h ? m : { ...m, [thread.n]: h },
 							)
 						}
-						onDrag={(p) => setDragged((m) => ({ ...m, [thread.n]: p }))}
+						onDrag={(p) => setDragged((m) => ({ ...m, [thread.n]: p.top }))}
 						onDrop={(p) => place(thread, p)}
 						onReply={(text) => sendJson(REPLY, { thread: thread.n, text })}
 					/>
@@ -755,6 +768,7 @@ function Desk({
 /** A floating card on the desk, dragged by its header. */
 function Card({
 	pos,
+	width = BUBBLE,
 	z,
 	name,
 	header,
@@ -765,6 +779,7 @@ function Card({
 	onDrop,
 }: {
 	pos: Pos;
+	width?: number;
 	z: number;
 	name: string;
 	header: ReactNode;
@@ -796,14 +811,15 @@ function Card({
 			style={{
 				left: pos.left,
 				top: pos.top,
-				width: BUBBLE,
+				width,
 				zIndex: z,
 				borderColor: color(name, 0.7),
 			}}
 			onPointerDownCapture={onRaise}
+			onPointerEnter={onRaise}
 		>
 			<div
-				className={`flex items-center gap-2 border-b px-3 py-2 select-none ${onDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
+				className={`flex items-center gap-2 border-b px-3 py-2 select-none ${onDrag ? "cursor-ns-resize" : ""}`}
 				style={{ touchAction: "none" }}
 				onPointerDown={(event) => {
 					if (!onDrag || (event.target as Element).closest("button")) return;
@@ -819,7 +835,7 @@ function Card({
 					const d = drag.current;
 					if (!d || !onDrag) return;
 					const moved = {
-						left: d.from.left + event.clientX - d.x,
+						left: d.from.left,
 						top: Math.max(0, d.from.top + event.clientY - d.y),
 					};
 					d.moved = moved;
@@ -912,6 +928,8 @@ function Composer({
 function Bubble({
 	thread,
 	pos,
+	width,
+	onWiden,
 	z,
 	collapsed,
 	seenBy,
@@ -925,6 +943,8 @@ function Bubble({
 }: {
 	thread: Thread;
 	pos: Pos;
+	width: number;
+	onWiden: (on: boolean) => void;
 	z: number;
 	collapsed: boolean;
 	seenBy: string[];
@@ -946,6 +966,7 @@ function Bubble({
 	return (
 		<Card
 			pos={pos}
+			width={width}
 			z={z}
 			name={thread.from}
 			onRaise={onRaise}
@@ -962,6 +983,19 @@ function Bubble({
 					<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 						p. {thread.page} · {count} {count === 1 ? "message" : "messages"}
 					</span>
+					<button
+						type="button"
+						aria-label={width > BUBBLE ? "Narrow" : "Widen"}
+						title={width > BUBBLE ? "Narrow" : "Widen, for now"}
+						className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+						onClick={() => onWiden(width <= BUBBLE)}
+					>
+						{width > BUBBLE ? (
+							<Minimize2 className="size-3.5" />
+						) : (
+							<Maximize2 className="size-3.5" />
+						)}
+					</button>
 					<button
 						type="button"
 						aria-label={collapsed ? "Open" : "Fold"}
