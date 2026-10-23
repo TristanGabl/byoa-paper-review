@@ -477,10 +477,14 @@ function Desk({
 }) {
 	const scroller = useRef<HTMLDivElement>(null);
 	const [view, setView] = useState(1200);
+	const [port, setPort] = useState({ top: 0, height: 0 });
 	useLayoutEffect(() => {
 		const el = scroller.current;
 		if (!el) return;
-		const observer = new ResizeObserver(() => setView(el.clientWidth));
+		const observer = new ResizeObserver(() => {
+			setView(el.clientWidth);
+			setPort({ top: el.scrollTop, height: el.clientHeight });
+		});
 		observer.observe(el);
 		return () => observer.disconnect();
 	}, []);
@@ -517,6 +521,31 @@ function Desk({
 	const [front, setFront] = useState<number[]>([]);
 	const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
 	const [sizes, setSizes] = useState<Record<number, Size>>({});
+	// The last message of each thread this person has seen, kept per
+	// session in this browser, so that answers that came while they were
+	// away still show as new.
+	const seenKey = `byoa-review-seen:${session.link}`;
+	const [seen, setSeen] = useState<Record<number, number>>(() => {
+		try {
+			return JSON.parse(localStorage.getItem(seenKey) ?? "{}");
+		} catch {
+			return {};
+		}
+	});
+	useEffect(() => {
+		try {
+			localStorage.setItem(seenKey, JSON.stringify(seen));
+		} catch {}
+	}, [seen, seenKey]);
+	const unreadOf = (thread: Thread) =>
+		thread.messages.filter(
+			(m) => m.from !== session.name && m.n > (seen[thread.n] ?? 0),
+		).length;
+	const markSeen = (thread: Thread) => {
+		const last = thread.messages.at(-1)?.n ?? thread.n;
+		if ((seen[thread.n] ?? 0) < last)
+			setSeen((m) => ({ ...m, [thread.n]: last }));
+	};
 	const raise = (n: number) =>
 		setFront((f) => [...f.filter((m) => m !== n), n]);
 
@@ -640,7 +669,11 @@ function Desk({
 				if ((event.target as Element).closest("[data-bubble]")) return;
 				setTimeout(() => setSelected(readSelection()), 10);
 			}}
-			onScroll={() => setSelected(null)}
+			onScroll={(event) => {
+				setSelected(null);
+				const el = event.currentTarget;
+				setPort({ top: el.scrollTop, height: el.clientHeight });
+			}}
 		>
 			<div className="relative" style={{ width: side * 2 + width, height }}>
 				{doc.ratios.map((ratio, i) => (
@@ -731,7 +764,11 @@ function Desk({
 							)
 							.map(([other]) => other)}
 						me={session.name}
-						onRaise={() => raise(thread.n)}
+						unread={unreadOf(thread)}
+						onRaise={() => {
+							raise(thread.n);
+							if (!collapsed[thread.n]) markSeen(thread);
+						}}
 						onCollapse={(c) => setCollapsed((m) => ({ ...m, [thread.n]: c }))}
 						onHeight={(h) =>
 							setHeights((m) =>
@@ -766,6 +803,38 @@ function Desk({
 					/>
 				)}
 			</div>
+			{(["up", "down"] as const).map((way) => {
+				const news = laid.filter(
+					({ thread, pos }) =>
+						unreadOf(thread) > 0 &&
+						(way === "up"
+							? pos.top + 40 < port.top
+							: pos.top > port.top + port.height - 40),
+				);
+				if (news.length === 0 || port.height === 0) return null;
+				const count = news.reduce(
+					(sum, { thread }) => sum + unreadOf(thread),
+					0,
+				);
+				const target = way === "up" ? news.at(-1) : news[0];
+				return (
+					<button
+						key={way}
+						type="button"
+						className={`fixed left-1/2 z-50 flex -translate-x-1/2 animate-in items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground shadow-lg fade-in-0 duration-150 ${way === "up" ? "top-16 slide-in-from-top-2" : "bottom-4 slide-in-from-bottom-2"}`}
+						onClick={() =>
+							target &&
+							scroller.current?.scrollTo({
+								top: target.pos.top - 120,
+								behavior: "smooth",
+							})
+						}
+					>
+						{way === "up" ? "↑" : "↓"} {count} new{" "}
+						{count === 1 ? "answer" : "answers"}
+					</button>
+				);
+			})}
 			{selected && !draft && (
 				<button
 					type="button"
@@ -808,10 +877,13 @@ function Card({
 	onDrop,
 	size,
 	onSize,
+	glow = false,
 }: {
 	pos: Pos;
 	width?: number;
 	size?: Size | undefined;
+	/** Rings the card, as for news in it. */
+	glow?: boolean;
 	onSize?: (size: Size) => void;
 	z: number;
 	name: string;
@@ -848,7 +920,7 @@ function Card({
 		<div
 			ref={el}
 			data-bubble
-			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${held ? "" : "transition-[top,left,width,height] duration-150 ease-out"}`}
+			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${glow ? "ring-2 ring-primary/60" : ""} ${held ? "" : "transition-[top,left,width,height] duration-150 ease-out"}`}
 			style={{
 				left: pos.left,
 				top: pos.top,
@@ -1031,6 +1103,7 @@ function Bubble({
 	collapsed,
 	seenBy,
 	me,
+	unread,
 	onRaise,
 	onCollapse,
 	onHeight,
@@ -1050,6 +1123,8 @@ function Bubble({
 	collapsed: boolean;
 	seenBy: string[];
 	me: string;
+	/** How many messages from others this person hasn't seen yet. */
+	unread: number;
 	onRaise: () => void;
 	onCollapse: (c: boolean) => void;
 	onHeight: (h: number) => void;
@@ -1071,6 +1146,7 @@ function Bubble({
 			pos={pos}
 			width={width}
 			size={collapsed ? undefined : size}
+			glow={unread > 0}
 			onSize={onSize}
 			z={z}
 			name={thread.from}
@@ -1088,6 +1164,12 @@ function Bubble({
 					<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 						p. {thread.page} · {count} {count === 1 ? "message" : "messages"}
 					</span>
+					{unread > 0 && (
+						<span className="flex animate-in items-center gap-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground zoom-in-50">
+							<span className="size-1.5 animate-pulse rounded-full bg-primary-foreground" />
+							{unread} new
+						</span>
+					)}
 					{size.l !== 0 || size.r !== 0 || size.h !== null ? (
 						<button
 							type="button"
