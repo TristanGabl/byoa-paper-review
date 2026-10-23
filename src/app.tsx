@@ -562,8 +562,14 @@ function Desk({
 		w: number;
 		fixed: boolean;
 	};
-	const column = (left: boolean, size: Size) =>
-		Math.max(8, (left ? side - GAP - BUBBLE : side + width + GAP) - size.l);
+	// A bubble stays on the desk: where it can't grow outward any more, it
+	// grows toward the page instead.
+	const desk = side * 2 + width;
+	const column = (left: boolean, size: Size) => {
+		const w = Math.min(BUBBLE + size.l + size.r, desk - 16);
+		const want = (left ? side - GAP - BUBBLE : side + width + GAP) - size.l;
+		return Math.max(8, Math.min(want, desk - 8 - w));
+	};
 	const laid: Laid[] = threads
 		.map((thread) => {
 			const rects = thread.rects.length
@@ -576,7 +582,7 @@ function Desk({
 				dragged[thread.n] ??
 				(thread.place ? pageTop + thread.place.y * ph : null);
 			const size = sizes[thread.n] ?? NATURAL;
-			const w = BUBBLE + size.l + size.r;
+			const w = Math.min(BUBBLE + size.l + size.r, desk - 16);
 			const left = box ? box[0] + box[2] / 2 < 0.5 : true;
 			return {
 				thread,
