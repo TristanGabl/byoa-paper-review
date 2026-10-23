@@ -695,17 +695,6 @@ function Desk({
 									stroke={stroke}
 									strokeWidth={1.2}
 								/>
-								<text
-									x={bx + bw}
-									y={by + bh + 13}
-									textAnchor="end"
-									fontSize={12}
-									fontStyle="italic"
-									fontFamily="'Segoe Script', 'Bradley Hand', cursive"
-									fill={stroke}
-								>
-									{from}
-								</text>
 								<path
 									d={`M ${sx} ${sy} C ${mid} ${sy}, ${mid} ${ey}, ${ex} ${ey}`}
 									fill="none"
