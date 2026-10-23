@@ -247,19 +247,32 @@ function Review({ name }: { name: string }) {
 					{paper?.filename ?? ""}
 				</span>
 				<div className="flex items-center gap-1">
-					{[...others].map(([other, { receiving }]) => (
-						<span
-							key={other}
-							title={`${other}: ${receiving ? "here" : "away"}`}
-							className="flex size-7 items-center justify-center rounded-full text-xs font-semibold text-black"
-							style={{
-								background: color(other),
-								opacity: receiving ? 1 : 0.4,
-							}}
-						>
-							{other.slice(0, 2).toUpperCase()}
-						</span>
-					))}
+					{[[name, { receiving: true }] as const, ...others].map(
+						([other, { receiving }]) => (
+							<span
+								key={other}
+								role="img"
+								aria-label={other}
+								className="group relative flex size-7 items-center justify-center rounded-full text-xs font-semibold text-black"
+								style={{
+									background: color(other),
+									opacity: receiving ? 1 : 0.4,
+								}}
+							>
+								{other.slice(0, 2).toUpperCase()}
+								<span className="pointer-events-none absolute top-full right-1/2 z-50 mt-2 translate-x-1/2 rounded-md border bg-popover px-2 py-1 text-xs font-normal whitespace-nowrap text-popover-foreground opacity-0 shadow-lg transition-opacity duration-100 group-hover:opacity-100">
+									<span className="font-medium">{other}</span>
+									<span className="text-muted-foreground">
+										{other === name
+											? " · you"
+											: receiving
+												? " · here"
+												: " · away"}
+									</span>
+								</span>
+							</span>
+						),
+					)}
 				</div>
 				{doc && (
 					<div className="flex items-center gap-1">
