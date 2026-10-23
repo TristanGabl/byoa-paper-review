@@ -417,7 +417,7 @@ function Invite({ token }: { token: string }) {
 				<UserPlus /> Invite
 			</Button>
 			{open && (
-				<div className="panel absolute right-0 top-10 z-40 flex w-80 flex-col gap-3 p-3 text-sm">
+				<div className="panel absolute right-0 top-10 z-40 animate-in fade-in-0 zoom-in-95 duration-100 flex w-80 flex-col gap-3 p-3 text-sm">
 					<CopyRow label="People: this page's link" text={location.href} />
 					<CopyRow label="Agents: give them this prompt" text={prompt} />
 					<p className="text-xs text-muted-foreground">
@@ -495,7 +495,7 @@ function Desk({
 		tops.push(y);
 		y += ratio * width + PAGE_GAP;
 	}
-	const height = y + 200;
+	const pagesBottom = y;
 	const pageHeight = (p: number) => (doc.ratios[p - 1] ?? 1.3) * width;
 
 	// Anchors of threads that came without rects, found on their page.
@@ -566,10 +566,14 @@ function Desk({
 	for (const item of laid) {
 		const s = item.left ? "left" : "right";
 		if (!item.fixed) item.pos.top = Math.max(item.pos.top, bottoms[s] + 14);
-		bottoms[s] =
+		bottoms[s] = Math.max(
+			bottoms[s],
 			item.pos.top +
-			(collapsed[item.thread.n] ? 44 : (heights[item.thread.n] ?? 160));
+				(collapsed[item.thread.n] ? 44 : (heights[item.thread.n] ?? 160)),
+		);
 	}
+	// The desk grows to hold whatever reaches below the last page.
+	const height = Math.max(pagesBottom, bottoms.left, bottoms.right) + 200;
 
 	const draftPos: Pos | null = draft
 		? (() => {
@@ -765,7 +769,7 @@ function Desk({
 			{selected && !draft && (
 				<button
 					type="button"
-					className="fixed z-50 flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background shadow-xl"
+					className="fixed z-50 flex animate-in fade-in-0 zoom-in-90 items-center gap-1.5 rounded-lg duration-100 bg-foreground px-3 py-1.5 text-sm font-medium text-background shadow-xl"
 					style={{
 						left: Math.min(
 							innerWidth - 140,
@@ -819,6 +823,8 @@ function Card({
 	onDrop?: (p: Pos) => void;
 }) {
 	const el = useRef<HTMLDivElement>(null);
+	// While dragged or resized, a card follows the pointer without easing.
+	const [held, setHeld] = useState(false);
 	const resizing = useRef<{
 		edge: string;
 		x: number;
@@ -842,7 +848,7 @@ function Card({
 		<div
 			ref={el}
 			data-bubble
-			className="panel absolute flex flex-col overflow-hidden"
+			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${held ? "" : "transition-[top,left,width,height] duration-150 ease-out"}`}
 			style={{
 				left: pos.left,
 				top: pos.top,
@@ -860,6 +866,7 @@ function Card({
 				onPointerDown={(event) => {
 					if (!onDrag || (event.target as Element).closest("button")) return;
 					event.currentTarget.setPointerCapture(event.pointerId);
+					setHeld(true);
 					drag.current = {
 						x: event.clientX,
 						y: event.clientY,
@@ -878,6 +885,7 @@ function Card({
 					onDrag(moved);
 				}}
 				onPointerUp={() => {
+					setHeld(false);
 					const d = drag.current;
 					drag.current = null;
 					if (d?.moved && onDrop) onDrop(d.moved);
@@ -898,6 +906,7 @@ function Card({
 							event.preventDefault();
 							event.stopPropagation();
 							event.currentTarget.setPointerCapture(event.pointerId);
+							setHeld(true);
 							resizing.current = {
 								edge,
 								x: event.clientX,
@@ -920,6 +929,7 @@ function Card({
 							onSize(next);
 						}}
 						onPointerUp={() => {
+							setHeld(false);
 							resizing.current = null;
 						}}
 						onDoubleClick={() => onSize(NATURAL)}
@@ -1227,7 +1237,7 @@ function Chat({
 		list.current?.scrollTo({ top: list.current.scrollHeight });
 	}, [last]);
 	return (
-		<aside className="panel absolute top-3 right-3 bottom-3 z-40 flex w-[340px] max-w-[calc(100%-24px)] flex-col overflow-hidden">
+		<aside className="panel absolute top-3 right-3 bottom-3 z-40 animate-in fade-in-0 slide-in-from-right-4 duration-150 flex w-[340px] max-w-[calc(100%-24px)] flex-col overflow-hidden">
 			<div className="flex items-center gap-2 border-b px-3 py-2">
 				<span className="flex-1 text-sm font-medium">Chat</span>
 				<button
