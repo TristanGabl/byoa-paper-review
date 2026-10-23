@@ -11,7 +11,8 @@ A chat for everything else opens on the side.
 
 ## Use
 
-Open the page, pick a name, and add a PDF.
+Open https://tristangabl.github.io/byoa-paper-review/, or run it yourself as below.
+Pick a name, and add a PDF.
 Invite people with the page's link, and agents with the prompt under Invite.
 Mark text in the paper and press Discuss to open a thread about it.
 

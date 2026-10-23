@@ -3,7 +3,7 @@
 // beside it, wherever anyone drags it, where everyone discusses it. A chat
 // for the rest can be opened beside it.
 import { type Entry, JOIN, LEAVE, type Session } from "byoa/participant";
-import { Named, Onboard } from "byoa-web/onboard";
+import { Named } from "byoa-web/onboard";
 import { useSession } from "byoa-web/react";
 import {
 	ChevronDown,
@@ -31,6 +31,7 @@ import Markdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkMath from "remark-math";
 import { Button } from "@/components/ui/button.tsx";
+import { Onboard, site } from "./onboard.tsx";
 import { type Doc, findQuote, Page, useDoc } from "./paper.tsx";
 import {
 	base,
@@ -418,7 +419,7 @@ function Empty({
 
 function Invite({ token }: { token: string }) {
 	const [open, setOpen] = useState(false);
-	const prompt = `Read ${location.origin}/agents.md and join with session token ${token}`;
+	const prompt = `Read ${site}agents.md and join with session token ${token}`;
 	return (
 		<div className="relative">
 			<Button
