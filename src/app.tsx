@@ -11,9 +11,9 @@ import {
 	FileUp,
 	LogOut,
 	MessageSquare,
+	Minimize2,
 	Minus,
 	Plus,
-	RotateCcw,
 	UserPlus,
 	X,
 } from "lucide-react";
@@ -1075,7 +1075,7 @@ function Bubble({
 							className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
 							onClick={() => onSize(NATURAL)}
 						>
-							<RotateCcw className="size-3.5" />
+							<Minimize2 className="size-3.5" />
 						</button>
 					)}
 					<button
