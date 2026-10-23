@@ -914,8 +914,6 @@ function Card({
 	onDrop?: (p: Pos) => void;
 }) {
 	const el = useRef<HTMLDivElement>(null);
-	// While dragged or resized, a card follows the pointer without easing.
-	const [held, setHeld] = useState(false);
 	const resizing = useRef<{
 		edge: string;
 		x: number;
@@ -939,7 +937,7 @@ function Card({
 		<div
 			ref={el}
 			data-bubble
-			className={`panel absolute flex flex-col overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 ${glow ? "ring-2 ring-primary/60" : ""} ${held ? "" : "transition-[height] duration-150 ease-out"}`}
+			className={`panel absolute flex flex-col overflow-hidden ${glow ? "ring-2 ring-primary/60" : ""}`}
 			style={{
 				left: pos.left,
 				top: pos.top,
@@ -957,7 +955,6 @@ function Card({
 				onPointerDown={(event) => {
 					if (!onDrag || (event.target as Element).closest("button")) return;
 					event.currentTarget.setPointerCapture(event.pointerId);
-					setHeld(true);
 					drag.current = {
 						x: event.clientX,
 						y: event.clientY,
@@ -976,7 +973,6 @@ function Card({
 					onDrag(moved);
 				}}
 				onPointerUp={() => {
-					setHeld(false);
 					const d = drag.current;
 					drag.current = null;
 					if (d?.moved && onDrop) onDrop(d.moved);
@@ -997,7 +993,6 @@ function Card({
 							event.preventDefault();
 							event.stopPropagation();
 							event.currentTarget.setPointerCapture(event.pointerId);
-							setHeld(true);
 							resizing.current = {
 								edge,
 								x: event.clientX,
@@ -1020,7 +1015,6 @@ function Card({
 							onSize(next);
 						}}
 						onPointerUp={() => {
-							setHeld(false);
 							resizing.current = null;
 						}}
 						onDoubleClick={() => onSize(NATURAL)}
