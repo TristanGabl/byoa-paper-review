@@ -10,9 +10,7 @@ import {
 	ChevronUp,
 	FileUp,
 	LogOut,
-	Maximize2,
 	MessageSquare,
-	Minimize2,
 	Minus,
 	Plus,
 	UserPlus,
@@ -49,8 +47,14 @@ import {
 const MAX_BYTES = 10 * 1024 * 1024;
 /** A bubble's width, and its distance from the page. */
 const BUBBLE = 300;
-/** A bubble's width while widened. */
-const WIDE = 520;
+/** The smallest a bubble can be resized to. */
+const MIN_W = 220;
+const MIN_H = 110;
+
+/** How far a bubble was resized, in pixels: grown on its left and right,
+ * and its height, if someone chose one. */
+type Size = { l: number; r: number; h: number | null };
+const NATURAL: Size = { l: 0, r: 0, h: null };
 const GAP = 56;
 const PAGE_GAP = 28;
 const TOP = 48;
@@ -508,7 +512,7 @@ function Desk({
 	const [heights, setHeights] = useState<Record<number, number>>({});
 	const [front, setFront] = useState<number[]>([]);
 	const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
-	const [wide, setWide] = useState<Record<number, boolean>>({});
+	const [sizes, setSizes] = useState<Record<number, Size>>({});
 	const raise = (n: number) =>
 		setFront((f) => [...f.filter((m) => m !== n), n]);
 
@@ -525,8 +529,8 @@ function Desk({
 		w: number;
 		fixed: boolean;
 	};
-	const column = (left: boolean, w: number) =>
-		left ? Math.max(8, side - GAP - w) : side + width + GAP;
+	const column = (left: boolean, size: Size) =>
+		Math.max(8, (left ? side - GAP - BUBBLE : side + width + GAP) - size.l);
 	const laid: Laid[] = threads
 		.map((thread) => {
 			const rects = thread.rects.length
@@ -538,7 +542,8 @@ function Desk({
 			const fixed =
 				dragged[thread.n] ??
 				(thread.place ? pageTop + thread.place.y * ph : null);
-			const w = wide[thread.n] ? WIDE : BUBBLE;
+			const size = sizes[thread.n] ?? NATURAL;
+			const w = BUBBLE + size.l + size.r;
 			const left = box ? box[0] + box[2] / 2 < 0.5 : true;
 			return {
 				thread,
@@ -547,7 +552,7 @@ function Desk({
 				w,
 				fixed: fixed !== null,
 				pos: {
-					left: column(left, w),
+					left: column(left, size),
 					top: fixed ?? pageTop + (box?.[1] ?? 0) * ph - 16,
 				},
 			};
@@ -716,7 +721,8 @@ function Desk({
 						thread={thread}
 						pos={pos}
 						width={w}
-						onWiden={(on) => setWide((m) => ({ ...m, [thread.n]: on }))}
+						size={sizes[thread.n] ?? NATURAL}
+						onSize={(size) => setSizes((m) => ({ ...m, [thread.n]: size }))}
 						z={20 + front.indexOf(thread.n) + 1}
 						collapsed={!!collapsed[thread.n]}
 						seenBy={Object.entries(presence)
@@ -801,9 +807,13 @@ function Card({
 	onHeight,
 	onDrag,
 	onDrop,
+	size,
+	onSize,
 }: {
 	pos: Pos;
 	width?: number;
+	size?: Size | undefined;
+	onSize?: (size: Size) => void;
 	z: number;
 	name: string;
 	header: ReactNode;
@@ -814,6 +824,12 @@ function Card({
 	onDrop?: (p: Pos) => void;
 }) {
 	const el = useRef<HTMLDivElement>(null);
+	const resizing = useRef<{
+		edge: string;
+		x: number;
+		y: number;
+		from: Size & { h: number };
+	} | null>(null);
 	const drag = useRef<{
 		x: number;
 		y: number;
@@ -836,6 +852,7 @@ function Card({
 				left: pos.left,
 				top: pos.top,
 				width,
+				...(size?.h != null && { height: size.h }),
 				zIndex: z,
 				borderColor: color(name, 0.7),
 			}}
@@ -874,9 +891,58 @@ function Card({
 				{header}
 			</div>
 			{children}
+			{size &&
+				onSize &&
+				EDGES.map(([edge, place]) => (
+					<div
+						key={edge}
+						aria-hidden
+						className={`absolute z-10 ${place}`}
+						style={{ touchAction: "none" }}
+						onPointerDown={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							event.currentTarget.setPointerCapture(event.pointerId);
+							resizing.current = {
+								edge,
+								x: event.clientX,
+								y: event.clientY,
+								from: { ...size, h: size.h ?? el.current?.offsetHeight ?? 200 },
+							};
+						}}
+						onPointerMove={(event) => {
+							const r = resizing.current;
+							if (!r) return;
+							const dx = event.clientX - r.x;
+							const dy = event.clientY - r.y;
+							const next: Size = { ...r.from, h: size.h };
+							const room = BUBBLE - MIN_W;
+							if (r.edge.includes("l"))
+								next.l = Math.max(-room - r.from.r, r.from.l - dx);
+							if (r.edge.includes("r"))
+								next.r = Math.max(-room - r.from.l, r.from.r + dx);
+							if (r.edge.includes("b")) next.h = Math.max(MIN_H, r.from.h + dy);
+							onSize(next);
+						}}
+						onPointerUp={() => {
+							resizing.current = null;
+						}}
+						onDoubleClick={() => onSize(NATURAL)}
+					/>
+				))}
 		</div>
 	);
 }
+
+/** Where a card can be resized from: either side, the bottom, and both
+ * bottom corners. A double click puts it back to its natural size. */
+const EDGES = [
+	["l", "inset-y-0 -left-1 w-2 cursor-ew-resize"],
+	["r", "inset-y-0 -right-1 w-2 cursor-ew-resize"],
+	["b", "inset-x-0 -bottom-1 h-2 cursor-ns-resize"],
+	["bl", "-bottom-1 -left-1 size-4 cursor-nesw-resize"],
+	["br", "-right-1 -bottom-1 size-4 cursor-nwse-resize"],
+] as const;
 
 function Avatar({ name }: { name: string }) {
 	return (
@@ -953,7 +1019,8 @@ function Bubble({
 	thread,
 	pos,
 	width,
-	onWiden,
+	size,
+	onSize,
 	z,
 	collapsed,
 	seenBy,
@@ -968,7 +1035,8 @@ function Bubble({
 	thread: Thread;
 	pos: Pos;
 	width: number;
-	onWiden: (on: boolean) => void;
+	size: Size;
+	onSize: (size: Size) => void;
 	z: number;
 	collapsed: boolean;
 	seenBy: string[];
@@ -991,6 +1059,8 @@ function Bubble({
 		<Card
 			pos={pos}
 			width={width}
+			size={collapsed ? undefined : size}
+			onSize={onSize}
 			z={z}
 			name={thread.from}
 			onRaise={onRaise}
@@ -1007,19 +1077,6 @@ function Bubble({
 					<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 						p. {thread.page} · {count} {count === 1 ? "message" : "messages"}
 					</span>
-					<button
-						type="button"
-						aria-label={width > BUBBLE ? "Narrow" : "Widen"}
-						title={width > BUBBLE ? "Narrow" : "Widen, for now"}
-						className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-						onClick={() => onWiden(width <= BUBBLE)}
-					>
-						{width > BUBBLE ? (
-							<Minimize2 className="size-3.5" />
-						) : (
-							<Maximize2 className="size-3.5" />
-						)}
-					</button>
 					<button
 						type="button"
 						aria-label={collapsed ? "Open" : "Fold"}
@@ -1042,7 +1099,7 @@ function Bubble({
 					</div>
 					<ol
 						ref={list}
-						className="flex max-h-80 flex-col gap-2.5 overflow-y-auto px-3 py-2"
+						className={`flex flex-col gap-2.5 overflow-y-auto px-3 py-2 ${size.h === null ? "max-h-80" : "min-h-0 flex-1"}`}
 					>
 						{thread.messages.map((m) => (
 							<li key={m.n} className="flex gap-2">
