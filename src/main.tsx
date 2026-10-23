@@ -1,0 +1,14 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app.tsx";
+import "katex/dist/katex.min.css";
+import "./index.css";
+
+const root = document.getElementById("root");
+if (root) {
+	createRoot(root).render(
+		<StrictMode>
+			<App />
+		</StrictMode>,
+	);
+}
