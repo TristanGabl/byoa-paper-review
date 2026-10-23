@@ -10,6 +10,7 @@ import {
 	ChevronUp,
 	FileUp,
 	LogOut,
+	Maximize2,
 	MessageSquare,
 	Minimize2,
 	Minus,
@@ -56,6 +57,8 @@ const MIN_H = 110;
  * and its height, if someone chose one. */
 type Size = { l: number; r: number; h: number | null };
 const NATURAL: Size = { l: 0, r: 0, h: null };
+const EXPANDED_LEFT: Size = { l: 220, r: 0, h: 520 };
+const EXPANDED_RIGHT: Size = { l: 0, r: 220, h: 520 };
 const GAP = 56;
 const PAGE_GAP = 28;
 const TOP = 48;
@@ -705,13 +708,14 @@ function Desk({
 						);
 					})}
 				</svg>
-				{laid.map(({ thread, pos, w }) => (
+				{laid.map(({ thread, pos, w, left }) => (
 					<Bubble
 						key={thread.n}
 						thread={thread}
 						pos={pos}
 						width={w}
 						size={sizes[thread.n] ?? NATURAL}
+						expanded={left ? EXPANDED_LEFT : EXPANDED_RIGHT}
 						onSize={(size) => setSizes((m) => ({ ...m, [thread.n]: size }))}
 						z={20 + front.indexOf(thread.n) + 1}
 						collapsed={!!collapsed[thread.n]}
@@ -1011,6 +1015,7 @@ function Bubble({
 	width,
 	size,
 	onSize,
+	expanded,
 	z,
 	collapsed,
 	seenBy,
@@ -1027,6 +1032,8 @@ function Bubble({
 	width: number;
 	size: Size;
 	onSize: (size: Size) => void;
+	/** The larger size Expand gives it, grown away from the page. */
+	expanded: Size;
 	z: number;
 	collapsed: boolean;
 	seenBy: string[];
@@ -1067,7 +1074,7 @@ function Bubble({
 					<span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
 						p. {thread.page} · {count} {count === 1 ? "message" : "messages"}
 					</span>
-					{(size.l !== 0 || size.r !== 0 || size.h !== null) && (
+					{size.l !== 0 || size.r !== 0 || size.h !== null ? (
 						<button
 							type="button"
 							aria-label="Reset size"
@@ -1076,6 +1083,16 @@ function Bubble({
 							onClick={() => onSize(NATURAL)}
 						>
 							<Minimize2 className="size-3.5" />
+						</button>
+					) : (
+						<button
+							type="button"
+							aria-label="Expand"
+							title="Expand"
+							className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+							onClick={() => onSize(expanded)}
+						>
+							<Maximize2 className="size-3.5" />
 						</button>
 					)}
 					<button
