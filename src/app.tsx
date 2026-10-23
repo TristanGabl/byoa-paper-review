@@ -230,8 +230,8 @@ function Review({ name }: { name: string }) {
 	}
 
 	return (
-		<main className="flex h-dvh flex-col bg-[oklch(0.2_0.01_260)]">
-			<header className="z-30 flex flex-wrap items-center gap-2 border-b bg-background/90 px-4 py-2 backdrop-blur">
+		<main className="flex h-dvh flex-col bg-desk">
+			<header className="z-30 flex flex-wrap items-center gap-2 border-b bg-card/80 px-4 py-2 backdrop-blur">
 				<span className="font-semibold tracking-tight">
 					paper<span className="text-muted-foreground">·</span>review
 				</span>
@@ -373,12 +373,12 @@ function Empty({
 }) {
 	return (
 		<div className="flex h-full items-center justify-center p-6">
-			<div className="flex max-w-md flex-col items-center gap-4 rounded-2xl border border-dashed border-white/20 p-10 text-center text-white/70">
+			<div className="panel flex max-w-md flex-col items-center gap-4 border-dashed p-10 text-center text-muted-foreground">
 				{waiting ? (
 					<p>Opening the paper…</p>
 				) : (
 					<>
-						<h1 className="text-2xl font-semibold text-white">
+						<h1 className="text-2xl font-semibold text-foreground">
 							Read a paper together
 						</h1>
 						<p>
@@ -409,7 +409,7 @@ function Invite({ token }: { token: string }) {
 				<UserPlus /> Invite
 			</Button>
 			{open && (
-				<div className="absolute right-0 top-10 z-40 flex w-80 flex-col gap-3 rounded-xl border bg-popover p-3 text-sm shadow-2xl">
+				<div className="panel absolute right-0 top-10 z-40 flex w-80 flex-col gap-3 p-3 text-sm">
 					<CopyRow label="People: this page's link" text={location.href} />
 					<CopyRow label="Agents: give them this prompt" text={prompt} />
 					<p className="text-xs text-muted-foreground">
@@ -639,7 +639,7 @@ function Desk({
 						style={{ left: side, top: tops[i], width, height: ratio * width }}
 					>
 						<Page doc={doc} n={i + 1} width={width} />
-						<span className="absolute -top-5 left-0 font-mono text-[11px] text-white/40">
+						<span className="absolute -top-5 left-0 font-mono text-[11px] text-muted-foreground/60">
 							{i + 1}
 						</span>
 					</div>
@@ -831,7 +831,7 @@ function Card({
 		<div
 			ref={el}
 			data-bubble
-			className="absolute flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-2xl shadow-black/40"
+			className="panel absolute flex flex-col overflow-hidden"
 			style={{
 				left: pos.left,
 				top: pos.top,
@@ -1139,8 +1139,8 @@ function Chat({
 		list.current?.scrollTo({ top: list.current.scrollHeight });
 	}, [last]);
 	return (
-		<aside className="absolute top-3 right-3 bottom-3 z-40 flex w-[340px] max-w-[calc(100%-24px)] flex-col overflow-hidden rounded-xl border bg-card/95 shadow-2xl backdrop-blur">
-			<div className="flex items-center border-b px-3 py-2">
+		<aside className="panel absolute top-3 right-3 bottom-3 z-40 flex w-[340px] max-w-[calc(100%-24px)] flex-col overflow-hidden">
+			<div className="flex items-center gap-2 border-b px-3 py-2">
 				<span className="flex-1 text-sm font-medium">Chat</span>
 				<button
 					type="button"
